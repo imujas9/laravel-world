@@ -2,7 +2,6 @@
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/imujas9/laravel-world.svg?style=flat-square)](https://packagist.org/packages/imujas9/laravel-world)
 [![Total Downloads](https://img.shields.io/packagist/dt/imujas9/laravel-world.svg?style=flat-square)](https://packagist.org/packages/imujas9/laravel-world)
-[![Tests](https://img.shields.io/github/actions/workflow/status/imujas9/laravel-world/tests.yml?label=tests&style=flat-square)](https://github.com/imujas9/laravel-world/actions)
 [![PHP Version](https://img.shields.io/packagist/php-v/imujas9/laravel-world.svg?style=flat-square)](https://packagist.org/packages/imujas9/laravel-world)
 
 World countries, states, and cities for Laravel — with multi-language support. Works **without a database** out of the box. Switch to a database driver any time with a single env variable.
