@@ -1,0 +1,44 @@
+[
+  {
+    "id": 1,
+    "code": "IN",
+    "iso3": "IND",
+    "phone_code": "91",
+    "currency": "INR",
+    "flag": "🇮🇳",
+    "region": "Asia",
+    "subregion": "Southern Asia",
+    "latitude": "20.00000000",
+    "longitude": "77.00000000",
+    "capital": "New Delhi",
+    "tld": ".in"
+  },
+  {
+    "id": 2,
+    "code": "US",
+    "iso3": "USA",
+    "phone_code": "1",
+    "currency": "USD",
+    "flag": "🇺🇸",
+    "region": "Americas",
+    "subregion": "Northern America",
+    "latitude": "38.00000000",
+    "longitude": "-97.00000000",
+    "capital": "Washington D.C.",
+    "tld": ".us"
+  },
+  {
+    "id": 3,
+    "code": "FR",
+    "iso3": "FRA",
+    "phone_code": "33",
+    "currency": "EUR",
+    "flag": "🇫🇷",
+    "region": "Europe",
+    "subregion": "Western Europe",
+    "latitude": "46.00000000",
+    "longitude": "2.00000000",
+    "capital": "Paris",
+    "tld": ".fr"
+  }
+]

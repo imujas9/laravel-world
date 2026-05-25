@@ -1,0 +1,53 @@
+{
+    "name": "imujas9/laravel-world",
+    "description": "World countries, states and cities with multi-language support for Laravel. Works without a database out of the box.",
+    "keywords": ["laravel", "countries", "states", "cities", "world", "i18n", "multilingual", "php"],
+    "license": "MIT",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Ujas Patel",
+            "email": "imujaspatel@gmail.com",
+            "homepage": "https://github.com/imujas9"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "illuminate/support": "^10.0|^11.0|^12.0",
+        "illuminate/database": "^10.0|^11.0|^12.0",
+        "illuminate/console": "^10.0|^11.0|^12.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0|^9.0",
+        "phpunit/phpunit": "^10.0|^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Imujas9\\World\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Imujas9\\World\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Imujas9\\World\\WorldServiceProvider"
+            ],
+            "aliases": {
+                "Country": "Imujas9\\World\\Facades\\Country",
+                "State": "Imujas9\\World\\Facades\\State",
+                "City": "Imujas9\\World\\Facades\\City"
+            }
+        }
+    },
+    "archive": {
+        "exclude": [
+            "tests/"
+        ]
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

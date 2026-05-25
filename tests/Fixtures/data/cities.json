@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "name": "Ahmedabad",
+    "state_code": "GJ",
+    "country_code": "IN",
+    "latitude": "23.02579430",
+    "longitude": "72.58727230"
+  },
+  {
+    "id": 2,
+    "name": "Surat",
+    "state_code": "GJ",
+    "country_code": "IN",
+    "latitude": "21.19594010",
+    "longitude": "72.83015950"
+  },
+  {
+    "id": 3,
+    "name": "Mumbai",
+    "state_code": "MH",
+    "country_code": "IN",
+    "latitude": "19.07609900",
+    "longitude": "72.87765590"
+  },
+  {
+    "id": 4,
+    "name": "Los Angeles",
+    "state_code": "CA",
+    "country_code": "US",
+    "latitude": "34.05223420",
+    "longitude": "-118.24368490"
+  },
+  {
+    "id": 5,
+    "name": "Paris",
+    "state_code": "IDF",
+    "country_code": "FR",
+    "latitude": "48.85341000",
+    "longitude": "2.34880000"
+  }
+]

@@ -1,0 +1,52 @@
+[
+  {
+    "id": 1,
+    "code": "GJ",
+    "country_code": "IN",
+    "country_id": 1,
+    "name": "Gujarat",
+    "type": "State",
+    "latitude": "22.25865200",
+    "longitude": "71.19238050"
+  },
+  {
+    "id": 2,
+    "code": "MH",
+    "country_code": "IN",
+    "country_id": 1,
+    "name": "Maharashtra",
+    "type": "State",
+    "latitude": "19.75147980",
+    "longitude": "75.71388840"
+  },
+  {
+    "id": 3,
+    "code": "CA",
+    "country_code": "US",
+    "country_id": 2,
+    "name": "California",
+    "type": "State",
+    "latitude": "36.77826100",
+    "longitude": "-119.41793240"
+  },
+  {
+    "id": 4,
+    "code": "NY",
+    "country_code": "US",
+    "country_id": 2,
+    "name": "New York",
+    "type": "State",
+    "latitude": "43.29942850",
+    "longitude": "-74.21793260"
+  },
+  {
+    "id": 5,
+    "code": "IDF",
+    "country_code": "FR",
+    "country_id": 3,
+    "name": "Île-de-France",
+    "type": "Region",
+    "latitude": "48.84944500",
+    "longitude": "2.35880600"
+  }
+]
