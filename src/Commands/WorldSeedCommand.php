@@ -63,6 +63,10 @@ class WorldSeedCommand extends Command
                 'flag'         => $country['flag']       ?? null,
                 'region'       => $country['region']     ?? null,
                 'subregion'    => $country['subregion']  ?? null,
+                'capital'      => $country['capital']    ?? null,
+                'tld'          => $country['tld']        ?? null,
+                'latitude'     => $country['latitude']   ?? null,
+                'longitude'    => $country['longitude']  ?? null,
                 'translations' => json_encode($countryTranslations),
             ];
         }
@@ -122,37 +126,111 @@ class WorldSeedCommand extends Command
     {
         $this->info('Seeding cities...');
 
-        $cities       = $this->loadJson("{$dataPath}/cities.json");
         $translations = $this->loadTranslations($dataPath, 'cities');
+        $path         = "{$dataPath}/cities.json";
 
+        if (! file_exists($path)) {
+            $this->warn("File not found: {$path}");
+            return;
+        }
+
+        // Stream cities one record at a time to avoid loading 30 MB into memory
+        $chunk = [];
         $total = 0;
-        foreach (array_chunk($cities, 500) as $chunk) {
-            $rows = array_map(function ($city) use ($translations, $countryCodeToId, $stateCodeToId) {
-                $id = (string) $city['id'];
-                $cityTranslations = [];
-                foreach ($translations as $lang => $map) {
-                    if (isset($map[$id])) {
-                        $cityTranslations[$lang] = $map[$id];
-                    }
-                }
-                return [
-                    'id'           => $city['id'],
-                    'name'         => $city['name'],
-                    'state_id'     => $stateCodeToId[$city['state_code']] ?? 0,
-                    'state_code'   => $city['state_code'],
-                    'country_id'   => $countryCodeToId[$city['country_code']] ?? 0,
-                    'country_code' => $city['country_code'],
-                    'latitude'     => $city['latitude']  ?? null,
-                    'longitude'    => $city['longitude'] ?? null,
-                    'translations' => json_encode($cityTranslations ?: null),
-                ];
-            }, $chunk);
 
-            DB::table("{$prefix}cities")->insertOrIgnore($rows);
-            $total += count($rows);
+        foreach ($this->streamJson($path) as $city) {
+            $id               = (string) $city['id'];
+            $cityTranslations = [];
+            foreach ($translations as $lang => $map) {
+                if (isset($map[$id])) {
+                    $cityTranslations[$lang] = $map[$id];
+                }
+            }
+
+            $chunk[] = [
+                'id'           => $city['id'],
+                'name'         => $city['name'],
+                'state_id'     => $stateCodeToId[$city['state_code']] ?? 0,
+                'state_code'   => $city['state_code'],
+                'country_id'   => $countryCodeToId[$city['country_code']] ?? 0,
+                'country_code' => $city['country_code'],
+                'latitude'     => $city['latitude']  ?? null,
+                'longitude'    => $city['longitude'] ?? null,
+                'translations' => json_encode($cityTranslations ?: null),
+            ];
+
+            if (count($chunk) >= 500) {
+                DB::table("{$prefix}cities")->insertOrIgnore($chunk);
+                $total += count($chunk);
+                $chunk  = [];
+            }
+        }
+
+        if ($chunk !== []) {
+            DB::table("{$prefix}cities")->insertOrIgnore($chunk);
+            $total += count($chunk);
         }
 
         $this->line("  {$total} cities seeded.");
+    }
+
+    private function streamJson(string $path): \Generator
+    {
+        $handle   = fopen($path, 'r');
+        $buffer   = '';
+        $depth    = 0;
+        $inString = false;
+        $escape   = false;
+
+        while (! feof($handle)) {
+            $chunk = fread($handle, 65536);
+
+            for ($i = 0, $len = strlen($chunk); $i < $len; $i++) {
+                $c = $chunk[$i];
+
+                if ($escape) {
+                    $escape = false;
+                    if ($depth > 0) $buffer .= $c;
+                    continue;
+                }
+
+                if ($c === '\\' && $inString) {
+                    $escape = true;
+                    if ($depth > 0) $buffer .= $c;
+                    continue;
+                }
+
+                if ($c === '"') {
+                    $inString = ! $inString;
+                    if ($depth > 0) $buffer .= $c;
+                    continue;
+                }
+
+                if ($inString) {
+                    if ($depth > 0) $buffer .= $c;
+                    continue;
+                }
+
+                if ($c === '{') {
+                    $depth++;
+                    $buffer .= $c;
+                } elseif ($c === '}' && $depth > 0) {
+                    $buffer .= $c;
+                    $depth--;
+                    if ($depth === 0) {
+                        $data = json_decode($buffer, true);
+                        if ($data !== null) {
+                            yield $data;
+                        }
+                        $buffer = '';
+                    }
+                } elseif ($depth > 0) {
+                    $buffer .= $c;
+                }
+            }
+        }
+
+        fclose($handle);
     }
 
     private function loadJson(string $path): array

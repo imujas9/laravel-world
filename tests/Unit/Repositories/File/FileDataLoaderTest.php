@@ -51,7 +51,6 @@ class FileDataLoaderTest extends TestCase
 
     public function test_returns_empty_array_for_missing_translation_file(): void
     {
-        // Missing lang files are not errors — caller falls back to default lang
         $map = $this->loader->loadTranslation('countries', 'xyz_nonexistent');
 
         $this->assertSame([], $map);
@@ -63,5 +62,41 @@ class FileDataLoaderTest extends TestCase
         $second = $this->loader->loadTranslation('countries', 'en');
 
         $this->assertSame($first, $second);
+    }
+
+    public function test_stream_yields_all_records(): void
+    {
+        $records = iterator_to_array($this->loader->stream('countries.json'), false);
+
+        $this->assertCount(3, $records);
+        $this->assertIsArray($records[0]);
+        $this->assertArrayHasKey('code', $records[0]);
+    }
+
+    public function test_stream_yields_correct_data(): void
+    {
+        $codes = [];
+        foreach ($this->loader->stream('countries.json') as $row) {
+            $codes[] = $row['code'];
+        }
+
+        $this->assertContains('IN', $codes);
+        $this->assertContains('US', $codes);
+        $this->assertContains('FR', $codes);
+    }
+
+    public function test_stream_yields_same_data_as_load(): void
+    {
+        $loaded   = $this->loader->load('countries.json');
+        $streamed = iterator_to_array($this->loader->stream('countries.json'), false);
+
+        $this->assertCount(count($loaded), $streamed);
+        $this->assertSame($loaded[0]['code'], $streamed[0]['code']);
+    }
+
+    public function test_stream_throws_on_missing_file(): void
+    {
+        $this->expectException(RuntimeException::class);
+        iterator_to_array($this->loader->stream('nonexistent.json'));
     }
 }

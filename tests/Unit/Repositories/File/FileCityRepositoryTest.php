@@ -28,8 +28,8 @@ class FileCityRepositoryTest extends TestCase
 
     public function test_all_uses_english_name_by_default(): void
     {
-        $results  = $this->repo->all();
-        $city     = $results->firstWhere('id', 1);
+        $results = $this->repo->all();
+        $city    = $results->firstWhere('id', 1);
 
         $this->assertSame('Ahmedabad', $city->name);
     }
@@ -76,6 +76,31 @@ class FileCityRepositoryTest extends TestCase
 
         $this->assertCount(1, $results);
         $this->assertSame('Mumbai', $results->first()->name);
+    }
+
+    public function test_where_like_matches_partial_name(): void
+    {
+        $results = $this->repo->newQuery()->whereLike('name', 'Ahm%')->get();
+
+        $this->assertCount(1, $results);
+        $this->assertSame('Ahmedabad', $results->first()->name);
+    }
+
+    public function test_search_finds_by_partial_name(): void
+    {
+        $results = $this->repo->newQuery()->search('Los')->get();
+
+        $this->assertCount(1, $results);
+        $this->assertSame('Los Angeles', $results->first()->name);
+    }
+
+    public function test_where_in_filters_by_multiple_state_codes(): void
+    {
+        $results = $this->repo->newQuery()->whereIn('state_code', ['GJ', 'CA'])->get();
+
+        $this->assertCount(3, $results);
+        $stateCodes = $results->pluck('state_code')->unique()->sort()->values()->toArray();
+        $this->assertSame(['CA', 'GJ'], $stateCodes);
     }
 
     public function test_lang_translates_name(): void
@@ -125,5 +150,14 @@ class FileCityRepositoryTest extends TestCase
         $this->assertSame(5, $page->total());
         $this->assertCount(2, $page->items());
         $this->assertSame(2, $page->currentPage());
+    }
+
+    public function test_city_data_has_null_state_id_from_file_driver(): void
+    {
+        // cities.json doesn't carry state_id — should be null in file mode
+        $city = $this->repo->find(1);
+
+        $this->assertNull($city->state_id);
+        $this->assertNull($city->country_id);
     }
 }

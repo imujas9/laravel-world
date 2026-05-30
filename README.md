@@ -19,12 +19,13 @@ World countries, states, and cities for Laravel — with multi-language support.
 | City translations on demand          | ✅            | ❌      |
 | 20+ languages for countries & states | ✅            | Partial |
 | Fluent chainable API                 | ✅            | Limited |
+| Partial name search & operators      | ✅            | ❌      |
 
 ---
 
 ## 📦 What's Included
 
-- **250 countries** — numeric ID, ISO codes, phone codes, currencies, flags, regions, coordinates
+- **250 countries** — numeric ID, ISO codes, dialling codes, currencies, flags, regions, capital cities, TLD, coordinates
 - **5,308 states / provinces** — linked to countries by ID and code, with administrative type
 - **156,025 cities** — linked to states and countries by ID and code, with coordinates
 - **20 languages** for country names · **27** for states · **24** for cities (downloaded on demand)
@@ -200,13 +201,17 @@ Country::lang('hi')->get();                      // single language
 Country::lang('en', 'hi')->get();                // multiple → name_en, name_hi
 Country::lang('en')->whereRegion('Asia')->get();
 Country::lang('en')->where('currency', 'INR')->get();
+Country::lang('en')->where('id', '>', 50)->get();    // operators: >, <, >=, <=, !=
+Country::lang('en')->whereLike('name', 'Ind%')->get();
+Country::lang('en')->search('india')->get();         // partial name match
+Country::lang('en')->whereIn('code', ['IN', 'US', 'GB'])->get();
 Country::lang('en')->orderBy('name')->get();
 Country::lang('en')->orderBy('name', 'desc')->get();
 Country::lang('en')->limit(10)->offset(20)->get();
 Country::lang('en')->whereRegion('Asia')->first();
 Country::whereRegion('Europe')->count();
-Country::lang('en')->paginate(15);               // page 1
-Country::lang('en')->paginate(15, 2);            // page 2
+Country::lang('en')->paginate(15);               // reads ?page from request
+Country::lang('en')->paginate(15, 2);            // explicit page 2
 ```
 
 ### State
@@ -220,6 +225,8 @@ State::lang('hi')->whereCountry('IN')->get();
 State::lang('en', 'hi')->whereCountry('IN')->get();
 State::whereCountry('US')->count();
 State::whereCountry('IN')->paginate(20);
+State::whereCountry('IN')->search('gujar')->get();  // partial name match
+State::whereIn('country_code', ['IN', 'US'])->get();
 ```
 
 ### City
@@ -233,6 +240,8 @@ City::whereCountry('IN')->whereState('MH')->get();
 City::lang('hi')->whereState('GJ')->get();
 City::lang('en', 'hi')->whereState('GJ')->get();
 City::whereCountry('IN')->paginate(50);
+City::whereCountry('IN')->search('mumbai')->get();   // partial name match
+City::whereIn('state_code', ['GJ', 'MH'])->get();
 ```
 
 </details>
@@ -246,20 +255,22 @@ All methods return consistent value objects regardless of driver.
 
 ### CountryData
 
-| Property     | Type           | Description                                      |
-| ------------ | -------------- | ------------------------------------------------ |
-| `id`         | `int`          | Numeric ID                                       |
-| `code`       | `string`       | ISO2 (e.g. `IN`)                                 |
-| `iso3`       | `string`       | ISO3 (e.g. `IND`)                                |
-| `phone_code` | `string`       | Dialling code (e.g. `91`)                        |
-| `currency`   | `string`       | ISO 4217 (e.g. `INR`)                            |
-| `flag`       | `string\|null` | Emoji flag (e.g. `🇮🇳`)                           |
-| `region`     | `string\|null` | e.g. `Asia`                                      |
-| `subregion`  | `string\|null` | e.g. `Southern Asia`                             |
-| `capital`    | `string\|null` | Capital city                                     |
-| `tld`        | `string\|null` | e.g. `.in`                                       |
-| `name`       | `string\|null` | Translated name (single lang)                    |
-| `names`      | `array`        | `['en' => 'India', 'hi' => 'भारत']` (multi-lang) |
+| Property     | Type           | Description                                       |
+| ------------ | -------------- | ------------------------------------------------- |
+| `id`         | `int`          | Numeric ID                                        |
+| `code`       | `string`       | ISO2 (e.g. `IN`)                                  |
+| `iso3`       | `string`       | ISO3 (e.g. `IND`)                                 |
+| `phone_code` | `string`       | Dialling code (e.g. `91`)                         |
+| `currency`   | `string`       | ISO 4217 (e.g. `INR`)                             |
+| `flag`       | `string\|null` | Emoji flag (e.g. `🇮🇳`)                            |
+| `region`     | `string\|null` | e.g. `Asia`                                       |
+| `subregion`  | `string\|null` | e.g. `Southern Asia`                              |
+| `capital`    | `string\|null` | Capital city (e.g. `New Delhi`)                   |
+| `tld`        | `string\|null` | Top-level domain (e.g. `.in`)                     |
+| `latitude`   | `string\|null` | Country centre latitude                           |
+| `longitude`  | `string\|null` | Country centre longitude                          |
+| `name`       | `string\|null` | Translated name (single lang)                     |
+| `names`      | `array`        | `['en' => 'India', 'hi' => 'भारत']` (multi-lang)  |
 
 ### StateData
 
@@ -277,15 +288,110 @@ All methods return consistent value objects regardless of driver.
 
 ### CityData
 
-| Property       | Type           | Description                   |
-| -------------- | -------------- | ----------------------------- |
-| `id`           | `int`          | Numeric ID                    |
-| `state_code`   | `string`       | Parent state code             |
-| `country_code` | `string`       | Parent country ISO2           |
-| `latitude`     | `string\|null` |                               |
-| `longitude`    | `string\|null` |                               |
-| `name`         | `string\|null` | Translated name (single lang) |
-| `names`        | `array`        | Translated names (multi-lang) |
+| Property       | Type        | Description                                     |
+| -------------- | ----------- | ----------------------------------------------- |
+| `id`           | `int`       | Numeric ID                                      |
+| `state_code`   | `string`    | Parent state code                               |
+| `country_code` | `string`    | Parent country ISO2                             |
+| `state_id`     | `int\|null` | Parent state numeric ID (DB driver only)        |
+| `country_id`   | `int\|null` | Parent country numeric ID (DB driver only)      |
+| `latitude`     | `string\|null` |                                              |
+| `longitude`    | `string\|null` |                                              |
+| `name`         | `string\|null` | Translated name (single lang)                |
+| `names`        | `array`        | Translated names (multi-lang)                |
+
+</details>
+
+---
+
+<details>
+<summary>🔍 Filtering & Search</summary>
+
+All three facades share the same fluent filtering API.
+
+### Equality (default)
+
+```php
+Country::where('currency', 'INR')->get();
+Country::where('region', 'Asia')->get();
+```
+
+### Comparison operators
+
+```php
+Country::where('id', '>', 100)->get();
+Country::where('id', '>=', 50)->count();
+Country::where('id', '!=', 1)->get();
+```
+
+### LIKE / partial match
+
+```php
+// whereLike uses SQL-style % and _ wildcards
+Country::lang('en')->whereLike('name', 'United%')->get();   // starts with
+Country::lang('en')->whereLike('name', '%land')->get();     // ends with
+Country::lang('en')->whereLike('name', '%istan%')->get();   // contains
+
+// search() is shorthand for whereLike(field, '%term%')
+Country::lang('en')->search('india')->get();
+State::whereCountry('IN')->search('gujar')->get();
+City::whereCountry('IN')->search('mumbai')->get();
+
+// search on a different field
+Country::lang('en')->search('Delhi', 'capital')->get();
+```
+
+### whereIn
+
+```php
+Country::whereIn('code', ['IN', 'US', 'GB'])->get();
+State::whereIn('country_code', ['IN', 'US'])->get();
+City::whereIn('state_code', ['GJ', 'MH', 'DL'])->get();
+```
+
+### Chaining multiple filters
+
+```php
+City::whereCountry('IN')
+    ->whereIn('state_code', ['GJ', 'MH'])
+    ->search('abad')
+    ->orderBy('name')
+    ->paginate(20);
+```
+
+> **File driver note:** LIKE filtering on `name` for countries and states matches the
+> translated name in the active language. For cities the stored English name is used.
+> All other fields (`code`, `capital`, `region`, `currency`, etc.) are matched against
+> the raw data.
+
+</details>
+
+---
+
+<details>
+<summary>📄 Pagination</summary>
+
+`paginate()` behaves like Laravel's native paginator — it reads the current page from the
+`?page` query parameter automatically.
+
+```php
+// In a controller — page comes from ?page=N in the URL
+$countries = Country::lang('en')->whereRegion('Asia')->paginate(15);
+$states    = State::whereCountry('IN')->paginate(20);
+$cities    = City::whereCountry('IN')->paginate(50);
+
+// Explicit page (useful outside HTTP context)
+$page2 = Country::lang('en')->paginate(15, 2);
+```
+
+The returned `LengthAwarePaginator` carries the correct `path` and query string, so
+`$countries->links()` renders proper next/prev URLs in Blade templates.
+
+**Database driver:** paginate executes a `COUNT(*)` query + a single `LIMIT/OFFSET` data
+query — no full table scan.
+
+**File driver:** paginate streams/filters all matching records to count, then returns
+only the requested page slice.
 
 </details>
 
@@ -360,6 +466,8 @@ class User extends Authenticatable
 $user->country;             // CountryData (both drivers)
 $user->country->name;       // "India"
 $user->country->flag;       // "🇮🇳"
+$user->country->capital;    // "New Delhi"
+$user->country->phone_code; // "91"
 $user->state->name;         // "Gujarat"
 $user->city->name;          // "Ahmedabad"
 
@@ -433,7 +541,7 @@ To add a new language, create `translations/countries/{lang}.json` with `{ "ISO2
 
 ## About
 
-Hi, I'm **Ujas Patel** — a Backend Developer(TALL Stack), based in Ahmedabad, India. I built this package because every existing world-data solution for Laravel forces a database setup before you can use even a simple country list. Laravel World works out of the box — and scales to a full database driver when you need it.
+Hi, I'm **Ujas Patel** — a Backend Developer (TALL Stack), based in Ahmedabad, India. I built this package because every existing world-data solution for Laravel forces a database setup before you can use even a simple country list. Laravel World works out of the box — and scales to a full database driver when you need it.
 
 **Reach out:** [imujaspatel [at] gmail [dot] com](mailto:imujaspatel@gmail.com)
 

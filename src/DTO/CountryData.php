@@ -13,6 +13,10 @@ class CountryData
         public readonly ?string $flag       = null,
         public readonly ?string $region     = null,
         public readonly ?string $subregion  = null,
+        public readonly ?string $capital    = null,
+        public readonly ?string $tld        = null,
+        public readonly ?string $latitude   = null,
+        public readonly ?string $longitude  = null,
         public readonly ?string $name       = null,
         public readonly array   $names      = [],
     ) {}
@@ -28,6 +32,10 @@ class CountryData
             flag:       $model->flag       ?? null,
             region:     $model->region     ?? null,
             subregion:  $model->subregion  ?? null,
+            capital:    $model->capital    ?? null,
+            tld:        $model->tld        ?? null,
+            latitude:   $model->latitude   ?? null,
+            longitude:  $model->longitude  ?? null,
             name:       $model->name       ?? null,
         );
     }
@@ -46,6 +54,10 @@ class CountryData
             flag:       $data['flag']       ?? null,
             region:     $data['region']     ?? null,
             subregion:  $data['subregion']  ?? null,
+            capital:    $data['capital']    ?? null,
+            tld:        $data['tld']        ?? null,
+            latitude:   $data['latitude']   ?? null,
+            longitude:  $data['longitude']  ?? null,
             name:       $name,
             names:      $names,
         );
@@ -62,6 +74,10 @@ class CountryData
             'flag'       => $this->flag,
             'region'     => $this->region,
             'subregion'  => $this->subregion,
+            'capital'    => $this->capital,
+            'tld'        => $this->tld,
+            'latitude'   => $this->latitude,
+            'longitude'  => $this->longitude,
         ];
 
         if ($this->names !== []) {

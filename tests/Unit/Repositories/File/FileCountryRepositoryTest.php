@@ -34,6 +34,22 @@ class FileCountryRepositoryTest extends TestCase
         $this->assertSame('India', $india->name);
     }
 
+    public function test_all_exposes_capital_and_tld(): void
+    {
+        $india = $this->repo->findByCode('IN');
+
+        $this->assertSame('New Delhi', $india->capital);
+        $this->assertSame('.in', $india->tld);
+    }
+
+    public function test_all_exposes_latitude_and_longitude(): void
+    {
+        $india = $this->repo->findByCode('IN');
+
+        $this->assertNotNull($india->latitude);
+        $this->assertNotNull($india->longitude);
+    }
+
     public function test_find_returns_country_by_id(): void
     {
         $country = $this->repo->find(1);
@@ -104,12 +120,63 @@ class FileCountryRepositoryTest extends TestCase
         $this->assertSame('IN', $results->first()->code);
     }
 
-    public function test_where_filters_by_arbitrary_field(): void
+    public function test_where_equality_filters_by_field(): void
     {
         $results = $this->repo->newQuery()->where('currency', 'EUR')->get();
 
         $this->assertCount(1, $results);
         $this->assertSame('FR', $results->first()->code);
+    }
+
+    public function test_where_like_partial_match(): void
+    {
+        $results = $this->repo->lang('en')->whereLike('name', 'Ind%')->get();
+
+        $this->assertCount(1, $results);
+        $this->assertSame('IN', $results->first()->code);
+    }
+
+    public function test_where_like_substring_match(): void
+    {
+        // "United States" contains "States"
+        $results = $this->repo->lang('en')->whereLike('name', '%States%')->get();
+
+        $this->assertCount(1, $results);
+        $this->assertSame('US', $results->first()->code);
+    }
+
+    public function test_search_convenience_method(): void
+    {
+        $results = $this->repo->lang('en')->search('rance')->get();
+
+        $this->assertCount(1, $results);
+        $this->assertSame('FR', $results->first()->code);
+    }
+
+    public function test_where_in_filters_multiple_codes(): void
+    {
+        $results = $this->repo->newQuery()->whereIn('code', ['IN', 'FR'])->get();
+
+        $this->assertCount(2, $results);
+        $codes = $results->pluck('code')->sort()->values()->toArray();
+        $this->assertSame(['FR', 'IN'], $codes);
+    }
+
+    public function test_where_in_returns_empty_when_no_match(): void
+    {
+        $results = $this->repo->newQuery()->whereIn('code', ['ZZ', 'XX'])->get();
+
+        $this->assertCount(0, $results);
+    }
+
+    public function test_where_not_equal_operator(): void
+    {
+        $results = $this->repo->newQuery()->where('region', '!=', 'Asia')->get();
+
+        $this->assertCount(2, $results);
+        foreach ($results as $c) {
+            $this->assertNotSame('Asia', $c->region);
+        }
     }
 
     public function test_new_query_returns_builder(): void

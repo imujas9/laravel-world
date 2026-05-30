@@ -24,6 +24,10 @@ return new class extends Migration
             $table->string('flag', 10)->nullable();
             $table->string('region', 50)->nullable()->index();
             $table->string('subregion', 100)->nullable();
+            $table->string('capital', 100)->nullable();
+            $table->string('tld', 10)->nullable();
+            $table->decimal('latitude', 10, 8)->nullable();
+            $table->decimal('longitude', 11, 8)->nullable();
             $table->json('translations')->nullable();
         });
     }

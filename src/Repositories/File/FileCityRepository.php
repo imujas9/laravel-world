@@ -54,26 +54,33 @@ class FileCityRepository implements CityRepository
 
     private function execute(WorldQueryBuilder $query): Collection
     {
-        $rows  = $this->loader->load('cities.json');
-        $langs = $query->getLangs();
+        $wheres = $query->getWheres();
+        $langs  = $query->getLangs();
 
         $translations = [];
         foreach ($langs as $lang) {
             $translations[$lang] = $this->loader->loadTranslation('cities', $lang);
         }
 
-        $collection = collect($rows)
-            ->filter(fn ($row) => $this->applyWheres($row, $query->getWheres()))
-            ->map(function ($row) use ($langs, $translations) {
-                $resolved = [];
-                foreach ($langs as $lang) {
-                    $id = (string) $row['id'];
-                    // Cities fall back to the English name stored in cities.json itself
-                    $resolved[$lang] = $translations[$lang][$id] ?? $row['name'] ?? null;
-                }
-                return CityData::fromArray($row, $resolved);
-            });
+        // Stream cities.json one record at a time to avoid loading 30 MB into memory.
+        // Only matching records are accumulated, so a country-filtered query uses a
+        // fraction of the memory compared to loading the full array.
+        $items = [];
+        foreach ($this->loader->stream('cities.json') as $row) {
+            if (! $this->applyWheres($row, $wheres)) {
+                continue;
+            }
 
+            $resolved = [];
+            foreach ($langs as $lang) {
+                $id              = (string) $row['id'];
+                $resolved[$lang] = $translations[$lang][$id] ?? $row['name'] ?? null;
+            }
+
+            $items[] = CityData::fromArray($row, $resolved);
+        }
+
+        $collection = collect($items);
         $collection = $this->applyOrder($collection, $query);
 
         if ($query->getOffsetValue() !== null) {
@@ -89,13 +96,42 @@ class FileCityRepository implements CityRepository
 
     private function applyWheres(array $row, array $wheres): bool
     {
-        foreach ($wheres as $field => $value) {
+        foreach ($wheres as [$field, $operator, $value]) {
             $rowValue = $row[$field] ?? null;
-            if (strtolower((string) $rowValue) !== strtolower((string) $value)) {
+
+            $matched = match ($operator) {
+                '='      => strtolower((string) $rowValue) === strtolower((string) $value),
+                '!='     => strtolower((string) $rowValue) !== strtolower((string) $value),
+                '>'      => (float) $rowValue > (float) $value,
+                '>='     => (float) $rowValue >= (float) $value,
+                '<'      => (float) $rowValue < (float) $value,
+                '<='     => (float) $rowValue <= (float) $value,
+                'like'   => $this->matchLike((string) $rowValue, (string) $value),
+                'in'     => in_array(
+                    strtolower((string) $rowValue),
+                    array_map(fn ($v) => strtolower((string) $v), $value),
+                    true
+                ),
+                'not in' => ! in_array(
+                    strtolower((string) $rowValue),
+                    array_map(fn ($v) => strtolower((string) $v), $value),
+                    true
+                ),
+                default => false,
+            };
+
+            if (! $matched) {
                 return false;
             }
         }
+
         return true;
+    }
+
+    private function matchLike(string $haystack, string $pattern): bool
+    {
+        $regex = '/^' . str_replace(['%', '_'], ['.*', '.'], preg_quote($pattern, '/')) . '$/isu';
+        return (bool) preg_match($regex, $haystack);
     }
 
     private function applyOrder(Collection $collection, WorldQueryBuilder $query): Collection

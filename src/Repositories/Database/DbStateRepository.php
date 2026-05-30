@@ -6,6 +6,7 @@ use Imujas9\World\Contracts\StateRepository;
 use Imujas9\World\DTO\StateData;
 use Imujas9\World\Models\State;
 use Imujas9\World\Query\WorldQueryBuilder;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class DbStateRepository implements StateRepository
@@ -15,8 +16,9 @@ class DbStateRepository implements StateRepository
     public function newQuery(): WorldQueryBuilder
     {
         return new WorldQueryBuilder(
-            executor:    fn (WorldQueryBuilder $q) => $this->execute($q),
-            defaultLang: $this->defaultLang,
+            executor:      fn (WorldQueryBuilder $q) => $this->execute($q),
+            defaultLang:   $this->defaultLang,
+            totalExecutor: fn (WorldQueryBuilder $q) => $this->executeCount($q),
         );
     }
 
@@ -54,12 +56,9 @@ class DbStateRepository implements StateRepository
     private function execute(WorldQueryBuilder $query): Collection
     {
         $langs   = $query->getLangs();
-        $wheres  = $query->getWheres();
         $builder = State::query();
 
-        foreach ($wheres as $field => $value) {
-            $builder->where($field, $value);
-        }
+        $this->applyWheres($builder, $query->getWheres());
 
         if ($query->getOrderByField()) {
             $builder->orderBy($query->getOrderByField(), $query->getOrderDir());
@@ -74,6 +73,25 @@ class DbStateRepository implements StateRepository
         }
 
         return $builder->get()->map(fn (State $model) => $this->toDto($model, $langs));
+    }
+
+    private function executeCount(WorldQueryBuilder $query): int
+    {
+        $builder = State::query();
+        $this->applyWheres($builder, $query->getWheres());
+        return $builder->count();
+    }
+
+    private function applyWheres(Builder $builder, array $wheres): void
+    {
+        foreach ($wheres as [$field, $operator, $value]) {
+            match ($operator) {
+                'in'     => $builder->whereIn($field, $value),
+                'not in' => $builder->whereNotIn($field, $value),
+                'like'   => $builder->where($field, 'LIKE', $value),
+                default  => $builder->where($field, $operator, $value),
+            };
+        }
     }
 
     private function toDto(State $model, array $langs): StateData

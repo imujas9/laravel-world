@@ -2,6 +2,7 @@
 
 namespace Imujas9\World\Repositories\File;
 
+use Generator;
 use RuntimeException;
 
 class FileDataLoader
@@ -28,6 +29,83 @@ class FileDataLoader
         $this->cache[$file] = json_decode(file_get_contents($path), true);
 
         return $this->cache[$file];
+    }
+
+    /**
+     * Stream a JSON array file one object at a time without loading the entire
+     * file into memory. Essential for large files like cities.json (~30 MB).
+     */
+    public function stream(string $file): Generator
+    {
+        $path = rtrim($this->dataPath, '/') . '/' . ltrim($file, '/');
+
+        if (! file_exists($path)) {
+            throw new RuntimeException("World data file not found: {$path}");
+        }
+
+        $handle   = fopen($path, 'r');
+        $buffer   = '';
+        $depth    = 0;
+        $inString = false;
+        $escape   = false;
+
+        while (! feof($handle)) {
+            $chunk = fread($handle, 65536);
+
+            for ($i = 0, $len = strlen($chunk); $i < $len; $i++) {
+                $c = $chunk[$i];
+
+                if ($escape) {
+                    $escape = false;
+                    if ($depth > 0) {
+                        $buffer .= $c;
+                    }
+                    continue;
+                }
+
+                if ($c === '\\' && $inString) {
+                    $escape = true;
+                    if ($depth > 0) {
+                        $buffer .= $c;
+                    }
+                    continue;
+                }
+
+                if ($c === '"') {
+                    $inString = ! $inString;
+                    if ($depth > 0) {
+                        $buffer .= $c;
+                    }
+                    continue;
+                }
+
+                if ($inString) {
+                    if ($depth > 0) {
+                        $buffer .= $c;
+                    }
+                    continue;
+                }
+
+                if ($c === '{') {
+                    $depth++;
+                    $buffer .= $c;
+                } elseif ($c === '}' && $depth > 0) {
+                    $buffer .= $c;
+                    $depth--;
+                    if ($depth === 0) {
+                        $data = json_decode($buffer, true);
+                        if ($data !== null) {
+                            yield $data;
+                        }
+                        $buffer = '';
+                    }
+                } elseif ($depth > 0) {
+                    $buffer .= $c;
+                }
+            }
+        }
+
+        fclose($handle);
     }
 
     /**

@@ -30,7 +30,6 @@ class CityDataTest extends TestCase
     {
         $dto = CityData::fromArray($this->raw, []);
 
-        // CityData falls back to the 'name' field from the raw array
         $this->assertSame('Ahmedabad', $dto->name);
     }
 
@@ -42,6 +41,30 @@ class CityDataTest extends TestCase
         $this->assertSame(['en' => 'Ahmedabad', 'hi' => 'अहमदाबाद'], $dto->names);
     }
 
+    public function test_state_id_and_country_id_are_null_when_absent(): void
+    {
+        $dto = CityData::fromArray($this->raw, []);
+
+        $this->assertNull($dto->state_id);
+        $this->assertNull($dto->country_id);
+    }
+
+    public function test_state_id_and_country_id_populated_when_present(): void
+    {
+        $dto = CityData::fromArray(array_merge($this->raw, ['state_id' => 5, 'country_id' => 101]), []);
+
+        $this->assertSame(5, $dto->state_id);
+        $this->assertSame(101, $dto->country_id);
+    }
+
+    public function test_state_id_and_country_id_cast_to_int(): void
+    {
+        $dto = CityData::fromArray(array_merge($this->raw, ['state_id' => '7', 'country_id' => '42']), []);
+
+        $this->assertSame(7, $dto->state_id);
+        $this->assertSame(42, $dto->country_id);
+    }
+
     public function test_to_array_includes_coordinates(): void
     {
         $dto    = CityData::fromArray($this->raw, ['en' => 'Ahmedabad']);
@@ -50,6 +73,15 @@ class CityDataTest extends TestCase
         $this->assertSame('23.02579430', $result['latitude']);
         $this->assertSame('72.58727230', $result['longitude']);
         $this->assertSame(1, $result['id']);
+    }
+
+    public function test_to_array_includes_state_id_and_country_id(): void
+    {
+        $dto    = CityData::fromArray(array_merge($this->raw, ['state_id' => 5, 'country_id' => 101]), []);
+        $result = $dto->toArray();
+
+        $this->assertSame(5, $result['state_id']);
+        $this->assertSame(101, $result['country_id']);
     }
 
     public function test_id_is_cast_to_int(): void
