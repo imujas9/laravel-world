@@ -33,7 +33,7 @@ World countries, states, and cities for Laravel — with multi-language support.
 
 ## Requirements & Installation
 
-- PHP **8.1+** · Laravel **10**, **11**, or **12**
+- PHP **8.1+** · Laravel **10**, **11**, **12**, or **13**
 
 ```bash
 composer require imujas9/laravel-world
