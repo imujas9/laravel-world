@@ -50,6 +50,18 @@ class StateFacadeTest extends TestCase
         $this->assertNull(State::findByCode('ZZ'));
     }
 
+    public function test_find_by_code_with_country_disambiguates(): void
+    {
+        $state = State::findByCode('GJ', 'IN');
+        $this->assertNotNull($state);
+        $this->assertSame('GJ', $state->code);
+    }
+
+    public function test_find_by_code_with_wrong_country_returns_null(): void
+    {
+        $this->assertNull(State::findByCode('GJ', 'US'));
+    }
+
     public function test_where_country_filters_by_country(): void
     {
         $results = State::whereCountry('IN')->get();

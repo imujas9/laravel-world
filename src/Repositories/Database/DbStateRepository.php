@@ -33,9 +33,15 @@ class DbStateRepository implements StateRepository
         return $model ? $this->toDto($model, [$this->defaultLang]) : null;
     }
 
-    public function findByCode(string $code): ?StateData
+    public function findByCode(string $code, ?string $countryCode = null): ?StateData
     {
-        return $this->newQuery()->where('code', strtoupper($code))->first();
+        $query = $this->newQuery()->where('code', strtoupper($code));
+
+        if ($countryCode !== null) {
+            $query->whereCountry($countryCode);
+        }
+
+        return $query->first();
     }
 
     public function lang(string ...$langs): WorldQueryBuilder

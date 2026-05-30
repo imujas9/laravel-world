@@ -57,6 +57,7 @@ class WorldSeedCommand extends Command
             $rows[] = [
                 'id'           => $id,
                 'code'         => $code,
+                'name'         => $countryTranslations['en'] ?? null,
                 'iso3'         => $country['iso3']       ?? null,
                 'phone_code'   => $country['phone_code'] ?? null,
                 'currency'     => $country['currency']   ?? null,

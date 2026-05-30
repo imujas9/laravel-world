@@ -7,7 +7,8 @@ use RuntimeException;
 
 class FileDataLoader
 {
-    private array $cache = [];
+    /** In-process memory cache — prevents re-reading the same file twice per request. */
+    private array $memory = [];
 
     public function __construct(
         private readonly string  $dataPath,
@@ -16,19 +17,11 @@ class FileDataLoader
 
     public function load(string $file): array
     {
-        if (isset($this->cache[$file])) {
-            return $this->cache[$file];
+        if (isset($this->memory[$file])) {
+            return $this->memory[$file];
         }
 
-        $path = rtrim($this->dataPath, '/') . '/' . ltrim($file, '/');
-
-        if (! file_exists($path)) {
-            throw new RuntimeException("World data file not found: {$path}");
-        }
-
-        $this->cache[$file] = json_decode(file_get_contents($path), true);
-
-        return $this->cache[$file];
+        return $this->memory[$file] = $this->readJson($this->resolvePath($file));
     }
 
     /**
@@ -37,11 +30,7 @@ class FileDataLoader
      */
     public function stream(string $file): Generator
     {
-        $path = rtrim($this->dataPath, '/') . '/' . ltrim($file, '/');
-
-        if (! file_exists($path)) {
-            throw new RuntimeException("World data file not found: {$path}");
-        }
+        $path = $this->resolvePath($file);
 
         $handle   = fopen($path, 'r');
         $buffer   = '';
@@ -118,34 +107,59 @@ class FileDataLoader
      */
     public function loadTranslation(string $entity, string $lang): array
     {
-        $cacheKey = "{$entity}:{$lang}";
+        $memKey = "{$entity}:{$lang}";
 
-        if (isset($this->cache[$cacheKey])) {
-            return $this->cache[$cacheKey];
+        if (isset($this->memory[$memKey])) {
+            return $this->memory[$memKey];
         }
 
-        // City translations live in the user-controlled storage path
-        if ($entity === 'cities' && $this->cityTranslationsPath !== null) {
-            $storagePath = rtrim($this->cityTranslationsPath, '/') . "/{$lang}.json";
+        return $this->memory[$memKey] = $this->resolveTranslation($entity, $lang);
+    }
 
-            if (file_exists($storagePath)) {
-                $data = json_decode(file_get_contents($storagePath), true) ?? [];
-                return $this->cache[$cacheKey] = $data;
-            }
+    public function dataPath(): string
+    {
+        return $this->dataPath;
+    }
 
-            // Not downloaded yet — return empty so caller falls back to English name
-            return $this->cache[$cacheKey] = [];
-        }
+    public function cityTranslationsPath(): ?string
+    {
+        return $this->cityTranslationsPath;
+    }
 
-        // Countries and states translations are bundled with the package
-        $file = "translations/{$entity}/{$lang}.json";
-        $path = rtrim($this->dataPath, '/') . '/' . $file;
+    private function resolvePath(string $file): string
+    {
+        $path = rtrim($this->dataPath, '/') . '/' . ltrim($file, '/');
 
         if (! file_exists($path)) {
-            return $this->cache[$cacheKey] = [];
+            throw new RuntimeException("World data file not found: {$path}");
         }
 
-        $data = json_decode(file_get_contents($path), true) ?? [];
-        return $this->cache[$cacheKey] = $data;
+        return $path;
+    }
+
+    private function readJson(string $path): array
+    {
+        return json_decode(file_get_contents($path), true) ?? [];
+    }
+
+    private function resolveTranslation(string $entity, string $lang): array
+    {
+        if ($entity === 'cities' && $this->cityTranslationsPath !== null) {
+            $path = rtrim($this->cityTranslationsPath, '/') . "/{$lang}.json";
+
+            if (file_exists($path)) {
+                return json_decode(file_get_contents($path), true) ?? [];
+            }
+
+            return [];
+        }
+
+        $path = rtrim($this->dataPath, '/') . "/translations/{$entity}/{$lang}.json";
+
+        if (! file_exists($path)) {
+            return [];
+        }
+
+        return json_decode(file_get_contents($path), true) ?? [];
     }
 }

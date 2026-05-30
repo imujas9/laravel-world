@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('phone_code', 10)->nullable();
             $table->string('currency', 10)->nullable();
             $table->string('flag', 10)->nullable();
+            $table->string('name', 100)->nullable()->index();
             $table->string('region', 50)->nullable()->index();
             $table->string('subregion', 100)->nullable();
             $table->string('capital', 100)->nullable();

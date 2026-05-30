@@ -10,7 +10,7 @@ use Illuminate\Support\Collection;
 /**
  * @method static Collection                          all()
  * @method static \Imujas9\World\DTO\StateData|null   find(int $id)
- * @method static \Imujas9\World\DTO\StateData|null   findByCode(string $code)
+ * @method static \Imujas9\World\DTO\StateData|null   findByCode(string $code, ?string $countryCode = null)
  * @method static WorldQueryBuilder                   lang(string ...$langs)
  * @method static WorldQueryBuilder                   whereCountry(string $countryCode)
  * @method static WorldQueryBuilder                   where(string $field, mixed $operatorOrValue, mixed $value = null)

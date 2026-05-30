@@ -168,7 +168,7 @@ City::lang('hi')->whereState('GJ')->get();
 <details>
 <summary>🗄️ Database Driver</summary>
 
-Use the database driver when you need SQL joins, full-text search, or indexing.
+Use the database driver when you need SQL joins, full-text search, or indexing on millions of rows.
 
 ```bash
 php artisan vendor:publish --tag=world-migrations
@@ -184,7 +184,24 @@ WORLD_DRIVER=database
 
 Your application code stays **exactly the same** — the driver swap is transparent.
 
+**When to use each driver:**
+
+| Scenario                                           | Recommended driver |
+| -------------------------------------------------- | ------------------ |
+| Read-only lookups, dropdowns, country picker       | `file` (default)   |
+| SQL `JOIN` to your own tables                      | `database`         |
+| Full-text search with relevance ranking            | `database`         |
+| Multi-tenant SaaS — no shared DB schema constraint | `file`             |
+| High-traffic API — want to avoid repeated JSON I/O | `file` + cache     |
+| You already manage a world-data migration workflow | `database`         |
+
+**DB performance notes:**
+- `paginate()` runs a `COUNT(*)` + a single `LIMIT/OFFSET` query — no full table scan.
+- An index on `name` is created for all three tables. Use `whereLike('name', 'Ind%')` for fast prefix searches.
+- For suffix / infix LIKE (`%istan%`), consider a full-text index on your database engine.
+
 </details>
+
 
 ---
 
@@ -220,6 +237,7 @@ Country::lang('en')->paginate(15, 2);            // explicit page 2
 State::all();
 State::find(12);                                 // by numeric ID
 State::findByCode('GJ');                         // by code (case-insensitive)
+State::findByCode('CA', 'US');                   // disambiguate — CA exists in US and Canada
 State::whereCountry('IN')->get();
 State::lang('hi')->whereCountry('IN')->get();
 State::lang('en', 'hi')->whereCountry('IN')->get();

@@ -9,6 +9,8 @@ use Illuminate\Support\Collection;
 
 class FileCityRepository implements CityRepository
 {
+    use AppliesFileWheres;
+
     public function __construct(
         private readonly FileDataLoader $loader,
         private readonly string         $defaultLang,
@@ -17,8 +19,9 @@ class FileCityRepository implements CityRepository
     public function newQuery(): WorldQueryBuilder
     {
         return new WorldQueryBuilder(
-            executor:    fn (WorldQueryBuilder $q) => $this->execute($q),
-            defaultLang: $this->defaultLang,
+            executor:      fn (WorldQueryBuilder $q) => $this->execute($q),
+            defaultLang:   $this->defaultLang,
+            totalExecutor: fn (WorldQueryBuilder $q) => $this->executeCount($q),
         );
     }
 
@@ -56,93 +59,92 @@ class FileCityRepository implements CityRepository
     {
         $wheres = $query->getWheres();
         $langs  = $query->getLangs();
+        $limit  = $query->getLimitValue();
+        $offset = $query->getOffsetValue() ?? 0;
+        $order  = $query->getOrderByField();
 
         $translations = [];
         foreach ($langs as $lang) {
             $translations[$lang] = $this->loader->loadTranslation('cities', $lang);
         }
 
-        // Stream cities.json one record at a time to avoid loading 30 MB into memory.
-        // Only matching records are accumulated, so a country-filtered query uses a
-        // fraction of the memory compared to loading the full array.
-        $items = [];
+        // When ordering is requested we must collect all matching records first,
+        // sort them, then slice — there is no way to do this in a single forward pass.
+        if ($order !== null) {
+            $items = $this->collectAll($wheres, $langs, $translations);
+            $collection = $this->applyOrder(collect($items), $query);
+
+            if ($offset > 0) {
+                $collection = $collection->slice($offset);
+            }
+
+            if ($limit !== null) {
+                $collection = $collection->take($limit);
+            }
+
+            return $collection->values();
+        }
+
+        // No ordering — stream with offset skip and early exit on limit.
+        // City::find(1) and paginate() both benefit from this path.
+        $items   = [];
+        $skipped = 0;
+
         foreach ($this->loader->stream('cities.json') as $row) {
             if (! $this->applyWheres($row, $wheres)) {
                 continue;
             }
 
-            $resolved = [];
-            foreach ($langs as $lang) {
-                $id              = (string) $row['id'];
-                $resolved[$lang] = $translations[$lang][$id] ?? $row['name'] ?? null;
+            if ($skipped < $offset) {
+                $skipped++;
+                continue;
             }
 
-            $items[] = CityData::fromArray($row, $resolved);
-        }
+            $items[] = $this->toDto($row, $langs, $translations);
 
-        $collection = collect($items);
-        $collection = $this->applyOrder($collection, $query);
-
-        if ($query->getOffsetValue() !== null) {
-            $collection = $collection->slice($query->getOffsetValue());
-        }
-
-        if ($query->getLimitValue() !== null) {
-            $collection = $collection->take($query->getLimitValue());
-        }
-
-        return $collection->values();
-    }
-
-    private function applyWheres(array $row, array $wheres): bool
-    {
-        foreach ($wheres as [$field, $operator, $value]) {
-            $rowValue = $row[$field] ?? null;
-
-            $matched = match ($operator) {
-                '='      => strtolower((string) $rowValue) === strtolower((string) $value),
-                '!='     => strtolower((string) $rowValue) !== strtolower((string) $value),
-                '>'      => (float) $rowValue > (float) $value,
-                '>='     => (float) $rowValue >= (float) $value,
-                '<'      => (float) $rowValue < (float) $value,
-                '<='     => (float) $rowValue <= (float) $value,
-                'like'   => $this->matchLike((string) $rowValue, (string) $value),
-                'in'     => in_array(
-                    strtolower((string) $rowValue),
-                    array_map(fn ($v) => strtolower((string) $v), $value),
-                    true
-                ),
-                'not in' => ! in_array(
-                    strtolower((string) $rowValue),
-                    array_map(fn ($v) => strtolower((string) $v), $value),
-                    true
-                ),
-                default => false,
-            };
-
-            if (! $matched) {
-                return false;
+            if ($limit !== null && count($items) >= $limit) {
+                break;
             }
         }
 
-        return true;
+        return collect($items);
     }
 
-    private function matchLike(string $haystack, string $pattern): bool
+    private function executeCount(WorldQueryBuilder $query): int
     {
-        $regex = '/^' . str_replace(['%', '_'], ['.*', '.'], preg_quote($pattern, '/')) . '$/isu';
-        return (bool) preg_match($regex, $haystack);
-    }
+        $wheres = $query->getWheres();
+        $count  = 0;
 
-    private function applyOrder(Collection $collection, WorldQueryBuilder $query): Collection
-    {
-        $field = $query->getOrderByField();
-        if ($field === null) {
-            return $collection;
+        foreach ($this->loader->stream('cities.json') as $row) {
+            if ($this->applyWheres($row, $wheres)) {
+                $count++;
+            }
         }
 
-        return $query->getOrderDir() === 'desc'
-            ? $collection->sortByDesc(fn (CityData $c) => $c->{$field} ?? null)
-            : $collection->sortBy(fn (CityData $c) => $c->{$field} ?? null);
+        return $count;
+    }
+
+    private function collectAll(array $wheres, array $langs, array $translations): array
+    {
+        $items = [];
+
+        foreach ($this->loader->stream('cities.json') as $row) {
+            if ($this->applyWheres($row, $wheres)) {
+                $items[] = $this->toDto($row, $langs, $translations);
+            }
+        }
+
+        return $items;
+    }
+
+    private function toDto(array $row, array $langs, array $translations): CityData
+    {
+        $resolved = [];
+        foreach ($langs as $lang) {
+            $id              = (string) $row['id'];
+            $resolved[$lang] = $translations[$lang][$id] ?? $row['name'] ?? null;
+        }
+
+        return CityData::fromArray($row, $resolved);
     }
 }

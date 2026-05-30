@@ -14,7 +14,7 @@ interface StateRepository
 
     public function find(int $id): ?StateData;
 
-    public function findByCode(string $code): ?StateData;
+    public function findByCode(string $code, ?string $countryCode = null): ?StateData;
 
     public function lang(string ...$langs): WorldQueryBuilder;
 

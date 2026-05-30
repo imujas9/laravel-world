@@ -3,7 +3,7 @@
     "description": "World countries, states and cities with multi-language support for Laravel. Works without a database out of the box.",
     "keywords": ["laravel", "countries", "states", "cities", "world", "i18n", "multilingual", "php"],
     "license": "MIT",
-    "version": "1.1.0",
+    "version": "1.3.0",
     "type": "library",
     "authors": [
         {

@@ -9,6 +9,8 @@ use Illuminate\Support\Collection;
 
 class FileCountryRepository implements CountryRepository
 {
+    use AppliesFileWheres;
+
     public function __construct(
         private readonly FileDataLoader $loader,
         private readonly string         $defaultLang,
@@ -58,8 +60,7 @@ class FileCountryRepository implements CountryRepository
             $translations[$lang] = $this->loader->loadTranslation('countries', $lang);
         }
 
-        $fallback = $this->loader->loadTranslation('countries', $this->fallbackLang);
-
+        $fallback    = $this->loader->loadTranslation('countries', $this->fallbackLang);
         $primaryLang = $langs[0];
 
         $collection = collect($rows)
@@ -93,65 +94,5 @@ class FileCountryRepository implements CountryRepository
         }
 
         return $collection->values();
-    }
-
-    private function applyWheres(array $row, array $wheres): bool
-    {
-        foreach ($wheres as [$field, $operator, $value]) {
-            $rowValue = $row[$field] ?? null;
-
-            $matched = match ($operator) {
-                '='      => strtolower((string) $rowValue) === strtolower((string) $value),
-                '!='     => strtolower((string) $rowValue) !== strtolower((string) $value),
-                '>'      => (float) $rowValue > (float) $value,
-                '>='     => (float) $rowValue >= (float) $value,
-                '<'      => (float) $rowValue < (float) $value,
-                '<='     => (float) $rowValue <= (float) $value,
-                'like'   => $this->matchLike((string) $rowValue, (string) $value),
-                'in'     => in_array(
-                    strtolower((string) $rowValue),
-                    array_map(fn ($v) => strtolower((string) $v), $value),
-                    true
-                ),
-                'not in' => ! in_array(
-                    strtolower((string) $rowValue),
-                    array_map(fn ($v) => strtolower((string) $v), $value),
-                    true
-                ),
-                default => false,
-            };
-
-            if (! $matched) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private function matchLike(string $haystack, string $pattern): bool
-    {
-        $regex = '/^' . str_replace(['%', '_'], ['.*', '.'], preg_quote($pattern, '/')) . '$/isu';
-        return (bool) preg_match($regex, $haystack);
-    }
-
-    private function applyOrder(Collection $collection, WorldQueryBuilder $query): Collection
-    {
-        $field = $query->getOrderByField();
-        if ($field === null) {
-            return $collection;
-        }
-
-        return $query->getOrderDir() === 'desc'
-            ? $collection->sortByDesc(fn (CountryData $c) => $this->getSortValue($c, $field))
-            : $collection->sortBy(fn (CountryData $c) => $this->getSortValue($c, $field));
-    }
-
-    private function getSortValue(CountryData $item, string $field): mixed
-    {
-        return match ($field) {
-            'name'  => $item->name,
-            default => $item->{$field} ?? null,
-        };
     }
 }

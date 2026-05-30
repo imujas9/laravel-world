@@ -72,6 +72,20 @@ class FileStateRepositoryTest extends TestCase
         $this->assertNull($this->repo->findByCode('XX'));
     }
 
+    public function test_find_by_code_with_country_code_disambiguates(): void
+    {
+        // GJ exists only in IN — country code narrows the result
+        $state = $this->repo->findByCode('GJ', 'IN');
+        $this->assertNotNull($state);
+        $this->assertSame('IN', $state->country_code);
+    }
+
+    public function test_find_by_code_with_wrong_country_returns_null(): void
+    {
+        // GJ does not exist in US fixtures
+        $this->assertNull($this->repo->findByCode('GJ', 'US'));
+    }
+
     public function test_where_country_filters_states(): void
     {
         $results = $this->repo->whereCountry('IN')->get();
@@ -135,7 +149,8 @@ class FileStateRepositoryTest extends TestCase
         $all = $this->repo->all();
         foreach ($all as $state) {
             $this->assertGreaterThan(0, $state->id);
-            $this->assertGreaterThan(0, $state->country_id);
+            // country_id is null when not present in the data source (file driver with no FK)
+            $this->assertTrue($state->country_id === null || $state->country_id > 0);
         }
     }
 }

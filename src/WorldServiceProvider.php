@@ -59,14 +59,10 @@ class WorldServiceProvider extends ServiceProvider
 
     private function registerFileDriver(): void
     {
-        // FileDataLoader is shared across all three file repositories —
-        // it caches loaded JSON in memory so each file is read only once per process.
-        $this->app->singleton(FileDataLoader::class, function () {
-            return new FileDataLoader(
-                config('world.data_path') ?? __DIR__ . '/../resources/data',
-                config('world.city_translations_path'),
-            );
-        });
+        $this->app->singleton(FileDataLoader::class, fn () => new FileDataLoader(
+            dataPath:             config('world.data_path') ?? __DIR__ . '/../resources/data',
+            cityTranslationsPath: config('world.city_translations_path'),
+        ));
 
         $this->app->bind(CountryRepository::class, function () {
             return new FileCountryRepository(
@@ -92,18 +88,6 @@ class WorldServiceProvider extends ServiceProvider
         });
     }
 
-    /**
-     * Resolve the active language for translations.
-     *
-     * Priority:
-     *   1. Current app locale (set by middleware / App::setLocale())
-     *   2. config('world.default_lang')
-     *   3. 'en'
-     *
-     * Normalises full locale strings: 'en_US' → 'en', 'zh_CN' → 'zh'.
-     * Called inside bind() closures so it runs at resolve-time, after
-     * middleware has already set the locale for the request.
-     */
     private function resolveDefaultLang(): string
     {
         $locale = $this->app->getLocale();
@@ -115,10 +99,6 @@ class WorldServiceProvider extends ServiceProvider
         return $locale ?: $this->configLang();
     }
 
-    /**
-     * The stable fallback language from config — used when the active locale
-     * has no translation file (e.g. locale is 'ga' but only 'en'/'hi' are downloaded).
-     */
     private function configLang(): string
     {
         return config('world.default_lang', 'en') ?: 'en';
